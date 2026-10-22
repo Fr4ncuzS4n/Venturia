@@ -1,20 +1,21 @@
 #the mod name as displayed in-game
-displayName: "Java Mod Template"
+displayName: "Venturia"
 
 #the internal name of your mod
-name: "example-java-mod"
+#this is the prefix of all content names, bundle keys and sprite regions
+name: "venturia"
 
 #your name
-author: "You"
+author: "Fr4ncuz"
 
 #the fully qualified main class of the mod
-main: "example.ExampleJavaMod"
+main: "venturia.VenturiaMod"
 
 #the mod description as seen in the mod dialog
-description: "A Mindustry Java mod template."
+description: "Adds a third planet to Mindustry, where the wind is the main source of power."
 
 #the mod version
-version: 1.0.0
+version: 0.1.0
 
 #the minimum game build required to run this mod
 minGameVersion: 160.3
