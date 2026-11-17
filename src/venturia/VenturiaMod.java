@@ -15,11 +15,12 @@ public class VenturiaMod extends Mod{
     public void loadContent(){
         Log.info("[Venturia] loading content.");
 
-        VenturiaContent.load();      // attributes, liquids, items
+        VenturiaContent.load();      // attributes, constants
         VenturiaWeathers.load();     // weather (wind)
+        VenturiaPlanets.load();      // planet + sectors (before items: shownPlanets)
+        VenturiaItems.load();        // items
         VenturiaBlocks.load();       // blocks
         VenturiaUnits.load();        // units
-        VenturiaPlanets.load();      // planet + sectors
         VenturiaTechTree.load();     // tech trees (after blocks and planet!)
 
         Log.info("[Venturia] content loaded.");

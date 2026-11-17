@@ -401,12 +401,12 @@ block = new MyBlock("my-block"){{
 
 ```java
 public class WindTurbine extends PowerGenerator{
-    public static final float maxOutput = 20f;
+    /** Maximum output at wind strength 1.0 (задаётся конструктором). */
+    public final float maxOutput;
 
-    public WindTurbine(String name){
+    public WindTurbine(String name, float maxOutput){
         super(name);
-        requirements(Category.power, with(Items.copper, 60, Items.lead, 20));
-        size = 2;
+        this.maxOutput = maxOutput;
         powerProduction = maxOutput;
     }
 
@@ -533,11 +533,14 @@ unit.venturia-wind-scout.name = Wind scout
 ### 5.4. Ассеты
 
 * Спрайты блоков — PNG 32×32 на тайл, с прозрачностью, без метаданных.
-* Путь: `assets/sprites/blocks/<category>/<content-name>/<content-name>[-suffix].png`,
-  где `<category>` — `production`, `power`, `crafting`, `units`, `environment`, `effect`,
-  а `<content-name>` — **полное имя с префиксом мода** (`venturia-wind-turbine`).
-  Имя региона в атласе = имя контента, поэтому `Block.load()` (`Core.atlas.find(name)`)
-  ищет именно `venturia-wind-turbine`.
+* Путь: `assets/sprites/blocks/<category>/<basename>/<basename>[-suffix].png`,
+  где `<category>` — `production`, `power`, `crafting`, `defense`, `units`, `environment`,
+  `effect`, `items`, а `<basename>` — имя контента **без префикса мода**
+  (`wind-turbine`, `cobalt-wall`).
+* Имя региона в атласе ставит паковщик (`Mods.packSprites`, проверено): регион =
+  `"<mod>-<basename>"`, кроме случая, когда часть после первого дефиса уже начинается
+  с `"<mod>-"`. Поэтому файлы называются **без префикса**, а `Block.load()`
+  (`Core.atlas.find(name)`) ищет регион `venturia-wind-turbine` — и находит.
 * Звуки/эффекты — `assets/sounds/`, `assets/sprites/effects/`.
 * Новый спрайт → обязательно проверить отсутствие «белого квадрата» в игре (см. §6.9).
 
@@ -592,6 +595,22 @@ unit.venturia-wind-scout.name = Wind scout
 18. **`Planet.init()` переживает отсутствие тех-дерева**: если корень не найден,
     `techTree` остаётся `null` и блок добавления в базу знаний просто пропускается —
     краша нет, но планета не появится в базе знаний игры.
+19. **`genTile` обязан задавать все три поля `TileGen`** (`floor`, `block`, `overlay`) в каждом
+    тайле — `TileGen.reset()` ставит `floor = stone, block = air, overlay = air`.
+    Стены пола (`floor.asFloor().wall`) резолвятся в `Floor.init()` только для ванильных
+    имён: `sand-floor → sand-wall`, `darksand → dune-wall`, `stone → stone-wall`,
+    `salt → salt-wall`; у жидких полов (`water`, `sand-water`) стены нет (`air`).
+20. **`Rules.borderDarkness = true` по умолчанию** — поэтому ванильный `trimDark()` ставит
+    стены (`floor.wall`) на тёмной 2-тайловой кайме кампейного сектора. Это штатное
+    поведение: не «выпиливать» `trimDark` из генератора планеты.
+21. **Рудный проход (`pass` + `noise()`)**: без переопределения `noise()` (проецирование
+    координат сектора через `sector.rect.project` с увеличением масштаба, как у Serpulo)
+    шум почти константен по сектору и руды не генерируются. `sector.rect.project`
+    возвращает **общий** `rect.result` Vec3 — мутировать его (`.scl`) можно, потому что
+    `project()` каждый раз сбрасывает его через `set()`, но кешировать нельзя.
+22. **Руды ставятся только на «поверхностные» полы** (`floor.hasSurface()` = не жидкость
+    и не стена) — чисто водные (naval) секторы получают мало или ноль руд, это ванильное
+    поведение Serpulo.
 
 ---
 
@@ -625,17 +644,21 @@ public class VenturiaContent{
 ```java
 @Override
 public void loadContent(){
-    VenturiaContent.load();      // атрибуты, жидкости, предметы
+    VenturiaContent.load();      // атрибуты, константы
+    VenturiaWeathers.load();     // погоды (ветер)
+    VenturiaPlanets.load();      // планета + секторы (ДО предметов и блоков — для shownPlanets!)
+    VenturiaItems.load();        // предметы
     VenturiaBlocks.load();       // блоки
     VenturiaUnits.load();        // юниты
-    VenturiaPlanets.load();      // планета + секторы
-    VenturiaTechTree.load();     // тех-деревья (после создания блоков!)
+    VenturiaTechTree.load();     // тех-деревья (после создания блоков и планеты!)
     Log.info("Loading Venturia content.");
 }
 ```
 
-Порядок важен: тех-дерево строим **после** блоков и **после** планеты (нужны корни и `planet`),
-и всё это — внутри `loadContent()` (иначе потеряем префикс мода, §3).
+Порядок важен: планета должна существовать **до** предметов/блоков, которые делают
+`shownPlanets.add(planet)` (иначе NPE); тех-дерево строим **после** блоков и планеты
+(нужны корни и `planet`). Всё это — внутри `loadContent()` (иначе потеряем префикс
+мода, §3).
 
 ### 7.3. Правила правок
 
@@ -690,11 +713,12 @@ public void loadContent(){
 |---|---|
 | `mod.hjson` | переименован: `name: venturia`, `main: venturia.VenturiaMod`, версия 0.1.0 |
 | `src/venturia/VenturiaMod.java` | точка входа; `loadContent()` вызывает все `load()` в правильном порядке |
-| `src/venturia/content/*` | `VenturiaContent` (атрибут ветра), `VenturiaWeathers` (gale/calm), `VenturiaBlocks`, `VenturiaUnits`, `VenturiaPlanets`, `VenturiaTechTree` |
-| `src/venturia/world/planet/*` | `VenturiaPlanet` + `VenturiaPlanetGenerator` (песок/стены/медь, погоды по секторам) |
-| `src/venturia/world/block/power/WindTurbine.java` | ветрогенератор: выработка ∝ силе ветра |
-| `assets/bundles/bundle.properties`, `bundle_ru.properties` | бандлы EN/RU (планета, погоды, ветрогенератор) |
-| `assets/sprites/blocks/power/venturia-wind-turbine/` | спрайт ветрогенератора (64×64, `size = 2`) |
+| `src/venturia/content/*` | `VenturiaContent` (атрибут ветра), `VenturiaWeathers` (gale/calm), `VenturiaItems` (cobalt), `VenturiaBlocks` (wind-wheel/turbine, cobalt-forge, cobalt-wall×2), `VenturiaUnits`, `VenturiaPlanets`, `VenturiaTechTree` |
+| `src/venturia/world/planet/*` | `VenturiaPlanet` + `VenturiaPlanetGenerator`: рельеф по высотным полосам (вода/отмель/песок/соль/дюны/камень), гребни стен по Ridged-шуму, руды по позиции сектора (cu+pb всегда; coal/ti по Simplex), `distort`/`trimDark`/`median`, `getHeight`/`getColor` для меша, погоды по секторам |
+| `src/venturia/world/block/power/WindTurbine.java` | ветрогенератор: выработка ∝ силе ветра; выход задаётся конструктором (`wind-wheel` 1.2f, `wind-turbine` 5f) |
+| `assets/bundles/bundle.properties`, `bundle_ru.properties` | бандлы EN/RU (планета, погоды, все блоки, предмет cobalt) |
+| `assets/sprites/blocks/power/wind-wheel/`, `.../crafting/cobalt-forge/`, `.../defense/cobalt-wall*/` | спрайты новых блоков (файлы без префикса мода — см. §5.4) |
+| `assets/sprites/items/cobalt.png` | иконка предмета cobalt |
 | `build.gradle.kts` | рабочая сборка (jar / jarAndroid / deploy), Mindustry v160, JDK 17 |
 | `.github/workflows/*` | CI: сборка на push/PR + публикация в Release |
 | `README.md` | README шаблона (описание сборки и публикации) — обновить под проект |
@@ -715,6 +739,10 @@ public void loadContent(){
 - [x] **Ветер**: атрибут `wind`, погоды (`gale`/`calm`), `PlanetGenerator.addWeather` для
       секторов, ветрогенератор, читающий `state.envAttrs`.
 - [x] **Бандлы** `assets/bundles/bundle.properties` + `bundle_ru.properties`.
+- [x] **Генерация планеты**: рельеф по высотным полосам, стены-гребни, руды по секторам,
+      `distort`/`trimDark`/`median`; откалибровано headless-проверкой (§6, пп. 19–22).
+- [x] **Первые блоки**: `wind-wheel`, ребаланс `wind-turbine` (5f), `cobalt-forge` +
+      предмет `cobalt`, `cobalt-wall`/`cobalt-wall-large`; спрайты и бандлы EN/RU.
 - [ ] **Проверка в игре**: планета видна, приземление работает, ветер меняется по погоде,
       спрайты не «белые квадраты».
 - [ ] **Фракция**: `Team`-наследник, ядро, юниты, блоки, волны/ИИ (объём B).

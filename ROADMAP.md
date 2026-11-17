@@ -325,7 +325,7 @@ public class VenturiaPlanetGenerator extends PlanetGenerator{
 src/venturia/content/VenturiaWeathers.java       # погоды
 src/venturia/content/VenturiaBlocks.java         # ветрогенератор
 src/venturia/world/block/power/WindTurbine.java  # кастомный блок
-assets/sprites/blocks/power/venturia-wind-turbine/venturia-wind-turbine.png
+assets/sprites/blocks/power/wind-turbine/wind-turbine.png
 ```
 
 ### Код
@@ -399,8 +399,8 @@ public void addWeather(Sector sector, Rules rules){
 
 > ⚠ `state.envAttrs` обновляется только в `mindustry.core.Logic.update()` — вне игрового
 > цикла значение ветра будет нулевым (AGENTS.md §4.2).
-> ⚠ Спрайт блока обязан называться **с префиксом мода**: `venturia-wind-turbine.png`,
-> иначе — «белый квадрат» (AGENTS.md §5.4).
+> ⚠ Спрайт блока: файл называется **без префикса мода** (`wind-turbine.png`), а регион
+> в атласе паковщик делает `venturia-wind-turbine` — см. AGENTS.md §5.4.
 
 ### Проверка
 
@@ -416,7 +416,7 @@ public void addWeather(Sector sector, Rules rules){
 |---|---|
 | Мощность всегда 0 | читать `state.envAttrs`, а не `rules.attributes`; проверять, что игра в состоянии `playing` |
 | Погода не появляется | `WeatherEntry` требует ненулевых частот/длительностей; проверить, что `rules.weather` не перетирается `Planet.applyRules` после наших правок |
-| Белый квадрат | имя файла спрайта = полное имя контента (`venturia-wind-turbine.png`) |
+| Белый квадрат | файл спрайта — `wind-turbine.png` (без префикса; регион в атласе добавит `venturia-` сам, §5.4 AGENTS.md) |
 | Android | не использовать `java.util.stream`, `List.of`, `String.strip` и прочие API Java 9+ |
 
 ---
@@ -446,3 +446,4 @@ public void addWeather(Sector sector, Rules rules){
 | Дата | Этап | Что сделано | Заметки |
 |---|---|---|---|
 | 2026-10-22 | M0–M3 (A) | Переименование мода, каркас контента, планета Venturia + генератор, ветер (gale/calm), ветрогенератор, бандлы EN/RU, спрайт | Скелет реализован. Пакет `venturia`. Контент регистрируется в `loadContent()`. Сборка проходит. |
+| 2026-11-17 | Генерация + первые блоки | Рельеф планеты переписан: высотные полосы (вода/отмель/песок/соль/дюны/камень), гребни стен по Ridged-шуму (~15–20%), руды cu+pb всегда, coal/ti по позиции сектора, `distort`/`trimDark`/`median`, `getHeight`/`getColor` (меш планеты). Новые блоки: `wind-wheel` (1×1, 1.2f), ребаланс `wind-turbine` (5f под ванильный масштаб), `cobalt-forge` (cu+pb → новый предмет `cobalt`), `cobalt-wall`/`cobalt-wall-large`. Спрайты + бандлы EN/RU. Все новые блоки и предмет — только на Вентурии (`shownPlanets`). | Откалибровано headless-проверкой (счётчики полов/руд/стен, ASCII-карты). Найдены и задокументированы подводные камни: AGENTS.md §6 пп. 19–22. Проверка в игре — за владельцем. |

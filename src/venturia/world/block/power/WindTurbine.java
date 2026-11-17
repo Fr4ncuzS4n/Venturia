@@ -1,12 +1,8 @@
 package venturia.world.block.power;
 
 import arc.math.*;
-import mindustry.content.Items;
-import mindustry.type.Category;
 import mindustry.world.blocks.power.*;
 import venturia.content.*;
-
-import static mindustry.type.ItemStack.*;
 
 /**
  * Wind turbine: the output scales with the wind strength of the environment.
@@ -16,13 +12,11 @@ import static mindustry.type.ItemStack.*;
  */
 public class WindTurbine extends PowerGenerator{
     /** Maximum output at wind strength 1.0. */
-    public static final float maxOutput = 20f;
+    public final float maxOutput;
 
-    public WindTurbine(String name){
+    public WindTurbine(String name, float maxOutput){
         super(name);
-
-        requirements(Category.power, with(Items.copper, 60, Items.lead, 20));
-        size = 2;
+        this.maxOutput = maxOutput;
         powerProduction = maxOutput;
     }
 
